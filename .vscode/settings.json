@@ -1,0 +1,13 @@
+{
+    "files.associations": {
+        "user.h": "c",
+        "types.h": "c",
+        "stat.h": "c",
+        "proc.h": "c",
+        "stdbool.h": "c",
+        "*.tcc": "c",
+        "complex": "c",
+        "fstream": "c",
+        "system_error": "c"
+    }
+}

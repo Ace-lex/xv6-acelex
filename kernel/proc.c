@@ -295,6 +295,9 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  // 子进程mask与父进程相同
+  np->mask = p->mask;
+
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -653,4 +656,18 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+uint64 GetProcNum() {
+  struct proc *p;
+  uint64 proc_num = 0;
+
+  // 记录状态不是UNUSED的数量
+  for (p = proc; p < &proc[NPROC]; p++) {
+    if (p->state != UNUSED) {
+      proc_num++;
+    }
+  }
+
+  return proc_num;
 }

@@ -56,6 +56,7 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
+  // 头插插回freelist
   acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
@@ -71,6 +72,8 @@ kalloc(void)
   struct run *r;
 
   acquire(&kmem.lock);
+
+  // 取队头空闲块
   r = kmem.freelist;
   if(r)
     kmem.freelist = r->next;
@@ -79,4 +82,17 @@ kalloc(void)
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+// 获取空闲块总大小
+uint64 GetFreeMemory() {
+  struct run *r = kmem.freelist;
+  int page_cnt = 0;
+
+  // 获取空闲页数
+  while (r) {
+    page_cnt++;
+    r = r->next;
+  }
+  return page_cnt*PGSIZE;
 }

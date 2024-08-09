@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "user.h": "c",
+        "defs.h": "c",
+        "date.h": "c",
+        "memlayout.h": "c",
+        "proc.h": "c",
+        "syscall.h": "c",
+        "types.h": "c",
+        "riscv.h": "c"
+    }
+}

@@ -7,6 +7,9 @@
 #include "spinlock.h"
 #include "proc.h"
 
+#define RESET_ACCESS (0xffffffffffffffff - PTE_A)
+#define MAX_CHECK_ACCESS 32
+
 uint64
 sys_exit(void)
 {
@@ -81,6 +84,51 @@ int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  uint64 start_va;
+  int page_num;
+  uint32 res_abits = 0;
+  uint64 dst_addr;
+
+  // 获取起始虚拟地址
+  if (argaddr(0, &start_va) < 0) {
+    return -1;
+  }
+
+  // 获取需要检查的页数
+  if (argint(1, &page_num) < 0) {
+    return -1;
+  }
+
+  if (page_num > MAX_CHECK_ACCESS) {
+    return -1;
+  }
+
+  // 获取结果存放的地址
+  if (argaddr(2, &dst_addr)) {
+    return -1;
+  }
+  
+  for (int i = 0; i < page_num; i++) {
+    uint32 curr_va = start_va + PGSIZE * i;
+    pte_t *curr_pte;
+
+    // 返回当前虚拟地址对应的pte
+    curr_pte = walk(myproc()->pagetable, curr_va, 0);
+    
+    // 判断是否被访问
+    if ((*curr_pte & PTE_A)) {
+      res_abits |= (1 << i);
+
+      // 清空访问位
+      *curr_pte = (*curr_pte) & RESET_ACCESS;
+    }
+
+  }
+
+  if (copyout(myproc()->pagetable, dst_addr, (char *)&res_abits, sizeof(res_abits)) < 0) {
+    return -1;
+  }
+
   return 0;
 }
 #endif

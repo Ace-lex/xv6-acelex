@@ -1,6 +1,9 @@
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "kernel/fcntl.h"
+#ifndef LAB_PGTBL
+  #define LAB_PGTBL 0
+#endif
 #ifdef LAB_PGTBL
 #include "kernel/riscv.h"
 #include "kernel/memlayout.h"

@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "user.h": "c",
+        "stop_token": "c",
+        "semaphore": "c",
+        "defs.h": "c",
+        "proc.h": "c"
+    }
+}

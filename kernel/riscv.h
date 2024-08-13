@@ -331,6 +331,14 @@ sfence_vma()
   asm volatile("sfence.vma zero, zero");
 }
 
+// 打印保存栈帧的寄存器，"=r" 表示将 x 与一个寄存器绑定
+static inline uint64
+r_fp()
+{
+  uint64 x;
+  asm volatile("mv %0, s0" : "=r" (x) );
+  return x;
+}
 
 #define PGSIZE 4096 // bytes per page
 #define PGSHIFT 12  // bits of offset within a page

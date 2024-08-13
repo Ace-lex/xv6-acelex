@@ -105,4 +105,16 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  // 保存alarm的参数
+  int ticks;
+  uint64 handler;
+
+  int pass_ticks;
+
+  // 保存执行handler之前的返回地址，以便handler能正确返回
+  struct trapframe old_trapframe;
+
+  // 保证在当前handler没有返回之前，不执行下一个handler
+  int can_handler;
 };

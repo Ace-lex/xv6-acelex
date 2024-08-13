@@ -58,6 +58,8 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
+  backtrace();
+
   if(argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
@@ -94,4 +96,24 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_sigalarm(void) {
+  if (argint(0, &myproc()->ticks) < 0) {
+    return -1;
+  }
+
+  if (argaddr(1, &myproc()->handler) < 0) {
+    return -1;
+  }
+  return 0;
+}
+
+uint64
+sys_sigreturn(void) {
+  // 恢复trapframe，在usertrapret时会根据trapframe恢复寄存器
+  *(myproc()->trapframe) = myproc()->old_trapframe;
+  myproc()->can_handler = 1;
+  return 0;
 }

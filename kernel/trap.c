@@ -77,8 +77,24 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
-  if(which_dev == 2)
+  // 每个tick都会有一次时钟中断
+  if(which_dev == 2) {
     yield();
+    if (myproc()->ticks && myproc()->can_handler) {
+      myproc()->pass_ticks++;
+      if (myproc()->pass_ticks == myproc()->ticks) {
+        myproc()->can_handler = 0;
+        myproc()->pass_ticks = 0;
+        
+        // 保存寄存器状态
+        p->old_trapframe = *(p->trapframe);
+        
+        // 返回用户态执行handler
+        p->trapframe->epc = (uint64)myproc()->handler;
+      }
+    }
+  }
+    
 
   usertrapret();
 }
@@ -124,6 +140,7 @@ usertrapret(void)
   // jump to trampoline.S at the top of memory, which 
   // switches to the user page table, restores user registers,
   // and switches to user mode with sret.
+  // 恢复寄存器
   uint64 fn = TRAMPOLINE + (userret - trampoline);
   ((void (*)(uint64,uint64))fn)(TRAPFRAME, satp);
 }

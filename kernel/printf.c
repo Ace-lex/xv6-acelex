@@ -132,3 +132,24 @@ printfinit(void)
   initlock(&pr.lock, "pr");
   pr.locking = 1;
 }
+
+
+
+// backtrace实现：打印每个栈帧的返回地址
+void backtrace() {
+  uint64 curr_fp = r_fp();
+  uint64 stack_top = PGROUNDUP(curr_fp);
+  
+  // 循环终止条件是到达栈顶
+  while (curr_fp < stack_top) {
+    // 打印返回地址
+    uint64 ret_addr = *(uint64 *)(curr_fp - 8);
+
+
+    printf("%p\n", ret_addr);
+    
+    // 通过prev_frame_ptr回溯
+    uint64 prev_frame = *(uint64 *)(curr_fp - 16);
+    curr_fp = prev_frame;
+  }
+}

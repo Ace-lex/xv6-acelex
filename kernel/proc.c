@@ -141,6 +141,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  // 初始化pass_ticks
+  p->pass_ticks = 0;
+  p->can_handler = 1;
+
   return p;
 }
 

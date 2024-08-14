@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "riscv.h": "c",
+        "defs.h": "c",
+        "spinlock.h": "c",
+        "memlayout.h": "c",
+        "proc.h": "c",
+        "param.h": "c"
+    }
+}

@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "fs.h"
 
+
 /*
  * the kernel's page table.
  */
@@ -14,6 +15,10 @@ pagetable_t kernel_pagetable;
 extern char etext[];  // kernel.ld sets this to end of kernel code.
 
 extern char trampoline[]; // trampoline.S
+
+extern void IncrRef(uint64 pa);
+
+void CowAlloc(pagetable_t curr_pgt, uint64 va, pte_t *old_pte);
 
 // Make a direct-map page table for the kernel.
 pagetable_t
@@ -303,7 +308,9 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
+  // pte_t *new_pte;
+  // char *mem;
+  // printf("uvmcopy\n");
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -311,14 +318,26 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    
+    // if((mem = kalloc()) == 0)
+    //   goto err;
+    // memmove(mem, (char*)pa, PGSIZE);
+    
+    // 将两个PTE的写位置0，并且COW位置1(本来就是只读页面的不需要COW)
+    if ((*pte & PTE_W) != 0) {
+      *pte |= PTE_COW;
+    }
+    *pte &= ~PTE_W;
+    
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+
+    // 把复制变为直接映射
+    if(mappages(new, i, PGSIZE, (uint64)pa, flags) != 0){
       goto err;
     }
+    
+    // 页面引用数加1
+    IncrRef(pa);
   }
   return 0;
 
@@ -347,12 +366,27 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
+  pte_t *pte;
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+    if (va0 >= MAXVA) {
+      return -1;
+    }
+    if ((pte = walk(pagetable, va0, 0)) == 0) {
+      // panic("cow: pte should exist");
+      return -1;
+    }
+    if ((*pte & PTE_COW) != 0 && (*pte & PTE_U) != 0) {
+      // 属于写时拷贝的情况
+      CowAlloc(pagetable, va0, pte);
+    }
+
+    // 计算物理地址
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
+    
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;

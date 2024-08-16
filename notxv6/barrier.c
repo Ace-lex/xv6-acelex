@@ -33,6 +33,7 @@ barrier()
   pthread_mutex_lock(&bstate.barrier_mutex);
   bstate.nthread++;
 
+  // 等待并释放锁
   if (bstate.nthread < nthread) {
     pthread_cond_wait(&bstate.barrier_cond, &bstate.barrier_mutex);
   }

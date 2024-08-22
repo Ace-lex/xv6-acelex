@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "typeinfo": "c",
+        "chrono": "c",
+        "mutex": "c",
+        "random": "c"
+    }
+}

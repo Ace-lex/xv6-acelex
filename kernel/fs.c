@@ -401,6 +401,37 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
 
+  // 需要二次间接索引
+  bn -= NINDIRECT;
+  if (bn < NDOUBLEINDIRECT) {
+    // 取出二次索引表
+    if((addr = ip->addrs[NDIRECT + 1]) == 0)
+      ip->addrs[NDIRECT + 1] = addr = balloc(ip->dev);
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+
+    // 查找一次间接索引表
+    uint table_idx = bn / NINDIRECT;
+    uint addr_idx = bn % NINDIRECT;
+
+    if((addr = a[table_idx]) == 0){
+      a[table_idx] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+    brelse(bp);
+
+    // 取出一次间接表中的数据
+    bp = bread(ip->dev, addr);
+    a = (uint*)bp->data;
+    if((addr = a[addr_idx]) == 0){
+      a[addr_idx] = addr = balloc(ip->dev);
+      log_write(bp);
+    }
+
+    brelse(bp);
+    return addr;
+  }
+
   panic("bmap: out of range");
 }
 
@@ -430,6 +461,34 @@ itrunc(struct inode *ip)
     brelse(bp);
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
+  }
+
+  // 释放二次索引表
+  if(ip->addrs[NDIRECT + 1]) {
+    bp = bread(ip->dev, ip->addrs[NDIRECT + 1]);
+    a = (uint*)bp->data;
+    int k;
+
+    for (j = 0; j < NINDIRECT; j++) {
+      // 如果存在对应的一次索引表，则释放其指向的所有块
+      if (a[j]) {
+        struct buf *tmp_bp = bread(ip->dev, a[j]);
+        uint *a_tmp = (uint*)tmp_bp->data;
+
+        for (k = 0; k < NINDIRECT; k++) {
+          if (a_tmp[k]) {
+            bfree(ip->dev, a_tmp[k]);
+          } 
+        }
+        
+        // 对应的一次索引表也要释放
+        brelse(tmp_bp);
+        bfree(ip->dev, a[j]);
+      }
+    }
+    brelse(bp);
+    bfree(ip->dev, ip->addrs[NDIRECT + 1]);
+    ip->addrs[NDIRECT + 1] = 0;
   }
 
   ip->size = 0;

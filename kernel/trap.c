@@ -5,6 +5,11 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
+
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -65,6 +70,71 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if (r_scause() == 15 || r_scause() == 13) {
+      // 创建新页面，并映射给抛出缺页异常的虚拟地址
+      uint64 va = r_stval();
+      uint flags = 0;
+      char *mem;
+
+      // 检查虚拟地址是否合法
+      if (va >= MAXVA) {
+        exit(-1);
+      }
+
+      if((mem = kalloc()) == 0) {
+        exit(-1);
+      }
+
+      // 初始化mem
+      memset(mem, 0, PGSIZE);
+
+      struct vma *curr_vma = 0;
+
+      // 得到对应的vma结构体
+      for (uint i = 0; i < p->curr_mmap; i++) {
+        if (va >= p->vmas[i].addr && va < p->vmas[i].addr + p->vmas[i].length && p->vmas[i].valid) {
+          curr_vma = &p->vmas[i];
+          break;
+        }
+      }
+      
+      if (curr_vma == 0) {
+        kfree(mem);
+        exit(-1);
+      }
+      int prot = curr_vma->prot;
+
+      // 读取物理页
+      // 首先确定偏移
+      uint offset = (uint)(va - curr_vma->addr);
+      ilock(curr_vma->mmap_file->ip);
+      // printf("file size is %d\n", curr_vma->mmap_file->ip->size);
+      readi(curr_vma->mmap_file->ip, 0, (uint64)mem, offset, PGSIZE);
+      // for (int i = 0; i < PGSIZE; i++) {
+      //   printf("%x", mem[i]);
+      // }
+
+      iunlock(curr_vma->mmap_file->ip);
+
+      // 进行flag与prot的换算
+      if (prot & PROT_READ) {
+        flags |= PTE_R;
+      }
+
+      if (prot & PROT_WRITE) {
+        flags |= PTE_W;
+      }
+
+      if (prot & PROT_EXEC) {
+        flags |= PTE_X;
+      }
+      
+      flags |= PTE_U;
+      // 映射
+      if (mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags) != 0) {
+        kfree(mem);
+        exit(-1);
+      }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {

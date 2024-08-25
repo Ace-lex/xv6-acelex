@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -134,6 +135,9 @@ found:
     release(&p->lock);
     return 0;
   }
+  
+  p->curr_mmap = 0; // 初始化mmap计数
+  p->curr_addr = TRAPFRAME;
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -292,6 +296,15 @@ fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  // 复制mmap相关信息，增加文件引用数
+  for (uint i = 0; i < p->curr_mmap; i++) {
+    np->vmas[i] = p->vmas[i];
+    if (np->vmas[i].valid)
+      filedup(np->vmas[i].mmap_file);
+  }
+  np->curr_mmap = p->curr_mmap;
+  np->curr_addr = p->curr_addr;
+
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -343,6 +356,28 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+  
+  // unmap process mapped region
+  for (int i = 0; i < p->curr_mmap; i++) {
+    if (p->vmas[i].valid) {
+      // 如果flag为MAP_SHARED，写回磁盘
+      if (p->vmas[i].flags == MAP_SHARED) {
+        filewrite(p->vmas[i].mmap_file, p->vmas[i].addr, p->vmas[i].length);
+      }
+
+      // 逐页释放（因为mmap region中可能有的页已经释放了）
+      for (uint64 addr = p->vmas[i].addr; addr < p->vmas[i].addr + p->vmas[i].length; addr += PGSIZE) {
+        if (walkaddr(myproc()->pagetable, PGROUNDDOWN(addr)) != 0) {
+          uvmunmap(p->pagetable, addr, 1, 1);
+        }
+      }
+
+      // 文件引用数减1
+      fileclose(p->vmas[i].mmap_file);
+      // 标记为已经unmap
+      p->vmas[i].valid = 0;
+    }
+  }
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){

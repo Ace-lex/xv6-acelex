@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "memlayout.h": "c",
+        "proc.h": "c",
+        "sleeplock.h": "c",
+        "fcntl.h": "c",
+        "file.h": "c",
+        "param.h": "c",
+        "types.h": "c",
+        "string_view": "c",
+        "date.h": "c",
+        "spinlock.h": "c",
+        "future": "c"
+    }
+}
